@@ -36,6 +36,27 @@ To develop on prereceivecli:
 
 To use prereceivecli in a project:
 
+The convention is that dynamodb holds a table with the name {parent_project}_git_hook and entries like
+
+.. code-block:: python
+
+    {u'protected_items': [{u'hashes': [sha1_hash],
+                           u'name': <NAME>,
+                           u'type': <file | directory>}],
+    u'slug': <PROJECT_NAME>})
+
+So a group in gitlab called "code" with a project called "super-secret" would need an entry in dynamodb in a table
+called "code_git_hook" and an entry like
+
+.. code-block:: python
+
+    {u'protected_items': [{u'hashes': ['asdfsfahjsfdhfhh134h234h23ghhhhqe3rh'],
+                           u'name': '_CI',
+                           u'type': 'directory'}],
+    u'slug': 'super-secret'}
+
+if one wanted to protect the _CI directory of the project from tampering.
+
 At least python3.6 is required.
 
 .. code-block:: bash
