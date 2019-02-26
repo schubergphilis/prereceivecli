@@ -65,3 +65,4 @@ Project Features
 ================
 
 Can protect directories and files from tampering by checking hash entries for them in a dynamodb
+Please refer to USAGE.rst for setup details.
