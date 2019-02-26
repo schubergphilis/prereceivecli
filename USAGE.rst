@@ -69,7 +69,7 @@ At least python3.6 is required.
     # copy over the logging.json from the project
     sudo cp /usr/local/lib/{PYTHON_VERSION_HERE}/site-packages/prereceivecli/conf/logging.json /etc/prereceive/logging.json
 
-    # create the calling script
+    # create the calling script as "root"
     cat <<EOF > /etc/prereceive/pre-receive_active
     #!/bin/sh
     SLACK_WEB_HOOK=SLACK_WEBHOOK
