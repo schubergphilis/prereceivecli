@@ -56,8 +56,7 @@ At least python3.6 is required.
     AWS_KEY=AWS_KEY
     AWS_REGION=eu-west-1
 
-    /usr/local/bin/pre-receive -L debug \
-                               -l /etc/prereceive/logging.json \
+    /usr/local/bin/pre-receive -l /etc/prereceive/logging.json \
                                -w "${SLACK_WEB_HOOK}" \
                                -s "${AWS_SECRET}" \
                                -k "${AWS_KEY}"  \
