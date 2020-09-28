@@ -164,8 +164,9 @@ def get_project(base, commit):
         git_command = None
     else:
         git_path = os.environ.get('GIT_OBJECT_DIRECTORY').split('/./')[0]
-        if os.environ.get("GIT_EXEC_PATH"):
-            git_command = f'{os.environ.get("GIT_EXEC_PATH")}/git'
+        git_execution_path = os.environ.get("GIT_EXEC_PATH")
+        if git_execution_path:
+            git_command = f'{git_execution_path}/git'
         else:
             success, stdout, _ = execute_command_with_returned_output('git --exec-path')
             git_command = f'{stdout}/git' if success else None
@@ -210,14 +211,13 @@ def get_table_for_project_group(project_group):
 @contextmanager
 def no_quarantine():
     """Context manager that clears the GIT_QUARANTINE_PATH environment variable and restores it"""
-    git_quarantine_path = ''
+    git_quarantine_path = os.environ.get('GIT_QUARANTINE_PATH')
     try:
-        if os.environ.get('GIT_QUARANTINE_PATH'):
-            git_quarantine_path = os.environ.get('GIT_QUARANTINE_PATH')
+        if git_quarantine_path is not None:
             del os.environ['GIT_QUARANTINE_PATH']
-            yield
+        yield
     finally:
-        if git_quarantine_path:
+        if git_quarantine_path is not None:
             os.environ['GIT_QUARANTINE_PATH'] = git_quarantine_path
 
 
