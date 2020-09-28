@@ -7,8 +7,4 @@
 #
 # Please use Pipfile to update the requirements.
 #
-boto3~=1.9.102
-commonutilslib~=0.1.0
-dataclasses~=0.6 ; python_version == '3.6'
-requests~=2.21.0
-schema~=0.6.8
+boto3~=1.9.253
