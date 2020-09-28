@@ -37,8 +37,9 @@ import os
 import shutil
 import pathlib
 import sys
+import shlex
 
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, check_output, CalledProcessError
 from contextlib import contextmanager
 from dataclasses import dataclass
 
@@ -47,6 +48,7 @@ import requests
 from botocore.exceptions import NoRegionError, NoCredentialsError, ClientError
 from commonutilslib import tempdir, Pushd
 from prereceivecli.configuration import ERROR_MESSAGE
+from prereceivecli.prereceivecliexceptions import GitExecutionPathNotFound
 
 __author__ = '''Costas Tyfoxylos <ctyfoxylos@schubergphilis.com>'''
 __docformat__ = '''google'''
@@ -105,6 +107,19 @@ def parse_hook_input():
         raise SystemExit(0)
     return base, commit
 
+def execute_command_with_returned_output(command):
+    """Execute the command with returned output"""
+    stdout = ''
+    stderr = ''
+    command = shlex.split(command)
+    try:
+        LOGGER.debug('Executing command %s', command)
+        command_execution = check_output(command)
+        stdout = command_execution.decode('utf-8')
+    except CalledProcessError as command_execution:
+        stderr = command_execution.stderr.decode('utf-8')
+    success = True if command_execution else False
+    return success, stdout.strip(), stderr.strip()
 
 def send_slack_message(webhook, message):
     """Send a message to a webhook in slack
@@ -149,7 +164,14 @@ def get_project(base, commit):
         git_command = None
     else:
         git_path = os.environ.get('GIT_OBJECT_DIRECTORY').split('/./')[0]
-        git_command = f'{os.environ.get("GIT_EXEC_PATH")}/git'
+        git_execution_path = os.environ.get("GIT_EXEC_PATH")
+        if git_execution_path:
+            git_command = f'{git_execution_path}/git'
+        else:
+            success, stdout, _ = execute_command_with_returned_output('git --exec-path')
+            git_command = f'{stdout}/git' if success else None
+        if not git_command:
+            raise GitExecutionPathNotFound()
         components = git_path.split('/')
         project_slug = components[-1].rpartition('.')[0]
         project_group = '/'.join(components[components.index('repositories') + 1:-1])
@@ -189,12 +211,14 @@ def get_table_for_project_group(project_group):
 @contextmanager
 def no_quarantine():
     """Context manager that clears the GIT_QUARANTINE_PATH environment variable and restores it"""
+    git_quarantine_path = os.environ.get('GIT_QUARANTINE_PATH')
     try:
-        git_quarantine_path = os.environ.get('GIT_QUARANTINE_PATH')
-        del os.environ['GIT_QUARANTINE_PATH']
+        if git_quarantine_path is not None:
+            del os.environ['GIT_QUARANTINE_PATH']
         yield
     finally:
-        os.environ['GIT_QUARANTINE_PATH'] = git_quarantine_path
+        if git_quarantine_path is not None:
+            os.environ['GIT_QUARANTINE_PATH'] = git_quarantine_path
 
 
 class GitCheckout:
