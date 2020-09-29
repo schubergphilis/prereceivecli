@@ -13,3 +13,9 @@ History
 ------------------
 
 * First public release
+
+
+0.1.1 (29-09-2020)
+------------------
+
+* Updated quaratine path logic
