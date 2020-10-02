@@ -148,7 +148,7 @@ def get_arguments():
                         action='store',
                         help='The aws region to use',
                         type=str,
-                        required=False)
+                        required=True)
     feature_parser = parser.add_mutually_exclusive_group(required=False)
     feature_parser.add_argument('--aggressive-check', '-a',
                                 dest='aggressive',
