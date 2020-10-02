@@ -19,3 +19,9 @@ History
 ------------------
 
 * Updated quaratine path logic
+
+
+0.2.0 (02-10-2020)
+------------------
+
+* EKS role assumption
