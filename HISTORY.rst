@@ -25,3 +25,9 @@ History
 ------------------
 
 * Fix for get_project method
+
+
+0.1.3 (02-10-2020)
+------------------
+
+* Fixed project_group name logic
