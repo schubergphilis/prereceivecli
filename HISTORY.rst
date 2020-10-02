@@ -19,3 +19,9 @@ History
 ------------------
 
 * Updated quaratine path logic
+
+
+0.1.2 (02-10-2020)
+------------------
+
+* Fix for get_project method
