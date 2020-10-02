@@ -158,7 +158,7 @@ def get_project(base, commit):
 
     """
     username = os.environ.get('GL_USERNAME')
-    git_execution_path = os.environ.get("GIT_EXEC_PATH")
+    git_execution_path = os.environ.get('GIT_EXEC_PATH')
     if git_execution_path:
         git_command = f'{git_execution_path}/git'
     else:
