@@ -89,37 +89,37 @@ def get_arguments():
     # https://docs.python.org/3/library/argparse.html
     parser = argparse.ArgumentParser(description=('A cli that implements a git server side pre-receive hook that gets '
                                                   'driven from dynamodb and reports to slack offending pushes.'))
-    mutex_group1 = parser.add_mutually_exclusive_group(required=True)
-    mutex_group2 = parser.add_mutually_exclusive_group()
-    mutex_group3 = parser.add_mutually_exclusive_group()
-    mutex_group4 = parser.add_mutually_exclusive_group()
-    key = mutex_group1.add_argument('--key', '-k',
+    excluding_key_arn = parser.add_mutually_exclusive_group(required=True)
+    excluding_secret_token = parser.add_mutually_exclusive_group()
+    excluding_key_token = parser.add_mutually_exclusive_group()
+    excluding_secret_arn = parser.add_mutually_exclusive_group()
+    key = excluding_key_arn.add_argument('--key', '-k',
                                     dest='access_key',
                                     action='store',
                                     help='The aws access key',
                                     type=str,
                                     required=False)
-    arn = mutex_group1.add_argument('--arn', '-arn',
+    arn = excluding_key_arn.add_argument('--arn', '-arn',
                                     dest='aws_role_arn',
                                     action='store',
                                     help='The aws role arn, defaults to environment variable',
                                     type=str,
                                     required=False)
-    token = mutex_group2.add_argument('--token', '-token',
+    token = excluding_secret_token.add_argument('--token', '-token',
                                       dest='aws_web_identity_token_file',
                                       action='store',
                                       help='The aws web identity token file, defaults to environment variable',
-                                      type=str,
+                                      type=argparse.FileType('r'),
                                       required=False)
-    secret = mutex_group2.add_argument('--secret', '-s',
+    secret = excluding_secret_token.add_argument('--secret', '-s',
                                        dest='secret_key',
                                        action='store',
                                        help='The aws secret key',
                                        type=str,
                                        required=False)
     # See: https://bugs.python.org/issue10984#msg219660
-    mutex_group3._group_actions.extend([key, token])
-    mutex_group4._group_actions.extend([arn, secret])
+    excluding_key_token._group_actions.extend([key, token])
+    excluding_secret_arn._group_actions.extend([arn, secret])
     parser.add_argument('--log-config',
                         '-l',
                         action='store',
@@ -149,6 +149,18 @@ def get_arguments():
                         help='The aws region to use',
                         type=str,
                         required=False)
+    feature_parser = parser.add_mutually_exclusive_group(required=False)
+    feature_parser.add_argument('--aggressive-check', '-a',
+                                dest='aggressive',
+                                action='store_true',
+                                help=('Flag noting whether the project should be rejected if no entry in the security '
+                                      'table'))
+    feature_parser.add_argument('--no-aggressive-check', '-n',
+                                dest='aggressive',
+                                action='store_false',
+                                help=('Flag noting whether the project should be rejected if no entry in the security '
+                                      'table'))
+    parser.set_defaults(aggressive=False)
     args = parser.parse_args()
     if all([args.access_key, args.secret_key is None]):
         parser.error("--key requires --secret.")
@@ -273,7 +285,6 @@ def main():
                         project.slug, project.username)
             raise SystemExit(0)
         credentials = get_credentials(args)
-        # print(credentials)
         os.environ['AWS_ACCESS_KEY_ID'] = credentials.access_key_id
         os.environ['AWS_SECRET_ACCESS_KEY'] = credentials.secret_access_key
         os.environ['AWS_DEFAULT_REGION'] = args.region
