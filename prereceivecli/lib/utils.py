@@ -190,7 +190,7 @@ def get_table_for_project_group(project_group):
     except NoRegionError:
         LOGGER.exception('')
         raise ValueError(invalid_settings)
-    project_group = project_group.replace('/', '_') if '/' in project_group else project_group
+    project_group = project_group.replace('/', '_')
     table = dynamodb.Table(f'{project_group}_git_hook')
     try:
         table.item_count
