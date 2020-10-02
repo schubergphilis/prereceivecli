@@ -157,25 +157,19 @@ def get_project(base, commit):
         (project): An object exposing the required attributes of the environment and the project
 
     """
-    if not os.environ.get('GIT_OBJECT_DIRECTORY'):
-        project_slug = os.environ.get('GL_REPOSITORY')
-        project_group = None
-        git_path = None
-        git_command = None
-    else:
-        git_path = os.environ.get('GIT_OBJECT_DIRECTORY').split('/./')[0]
-        git_execution_path = os.environ.get("GIT_EXEC_PATH")
-        if git_execution_path:
-            git_command = f'{git_execution_path}/git'
-        else:
-            success, stdout, _ = execute_command_with_returned_output('git --exec-path')
-            git_command = f'{stdout}/git' if success else None
-        if not git_command:
-            raise GitExecutionPathNotFound()
-        components = git_path.split('/')
-        project_slug = components[-1].rpartition('.')[0]
-        project_group = '/'.join(components[components.index('repositories') + 1:-1])
     username = os.environ.get('GL_USERNAME')
+    git_execution_path = os.environ.get("GIT_EXEC_PATH")
+    if git_execution_path:
+        git_command = f'{git_execution_path}/git'
+    else:
+        success, stdout, _ = execute_command_with_returned_output('git --exec-path')
+        git_command = f'{stdout}/git' if success else None
+    if not git_command:
+        raise GitExecutionPathNotFound()
+    git_path = os.environ.get('PWD')
+    components = os.environ.get('GL_PROJECT_PATH').split('/')
+    project_slug = components[-1]
+    project_group = '/'.join(components[:-1])
     return Project(project_slug, project_group, git_path, git_command, username, commit, base)
 
 
