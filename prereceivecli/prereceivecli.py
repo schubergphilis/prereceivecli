@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # File: prereceivecli.py
 #
-# Copyright 2019 Costas Tyfoxylos, Alberto Rodriguez Garcia
+# Copyright 2019 Costas Tyfoxylos
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -65,7 +65,7 @@ __author__ = '''Costas Tyfoxylos <ctyfoxylos@schubergphilis.com>'''
 __docformat__ = '''google'''
 __date__ = '''26-02-2019'''
 __copyright__ = '''Copyright 2019, Costas Tyfoxylos'''
-__credits__ = ["Costas Tyfoxylos"]
+__credits__ = ["Costas Tyfoxylos", "Alberto Rodriguez Garcia"]
 __license__ = '''MIT'''
 __maintainer__ = '''Costas Tyfoxylos'''
 __email__ = '''<ctyfoxylos@schubergphilis.com>'''
