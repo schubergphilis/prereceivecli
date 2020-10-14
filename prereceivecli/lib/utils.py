@@ -186,7 +186,10 @@ def get_table_for_project_group(project_group):
     """
     invalid_settings = 'Invalid aws credentials settings. Please set region and credentials properly'
     try:
-        dynamodb = boto3.resource('dynamodb')
+        dynamodb = boto3.resource('dynamodb',
+                                  aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+                                  aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+                                  aws_session_token=os.environ.get('AWS_SESSION_TOKEN'))
     except NoRegionError:
         LOGGER.exception('')
         raise ValueError(invalid_settings)

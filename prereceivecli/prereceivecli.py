@@ -38,6 +38,7 @@ import logging.config
 import os
 from dataclasses import dataclass
 import boto3
+import botocore
 
 from commonutilslib import Hasher
 from botocore.config import Config
@@ -211,17 +212,24 @@ def get_credentials(args):
         Credentials: The AWS credentials to set for our environment
     """
     if not all([args.access_key, args.secret_key]):
-        config = Config(retries={'max_attempts': 10,
-                                 'mode': 'standard'})
-        client = boto3.client('sts', config=config)
-        with open(args.aws_web_identity_token_file, 'r') as opened_file:
+        #config = Config(retries={'max_attempts': 10,
+        #                         'mode': 'standard'})
+        #client = boto3.client('sts', config=config)
+        client = boto3.client('sts',
+                              aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+                              aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+                              aws_session_token=os.environ.get('AWS_SESSION_TOKEN'))
+        with open(args.aws_web_identity_token_file.name, 'r') as opened_file:
             token = opened_file.read()
-        response = client.assume_role_with_web_identity(RoleArn=args.aws_role_arn,
-                                                        RoleSessionName='prereceive',
-                                                        WebIdentityToken=token)
-        return AwsCredentials(response['Credentails']['AccessKeyId'],
-                              response['Credentails']['SecretAccessKey'],
-                              response['Credentails']['SessionToken'])
+        try:   
+            response = client.assume_role_with_web_identity(RoleArn=args.aws_role_arn,
+                                                            RoleSessionName='prereceive',
+                                                            WebIdentityToken=token)
+        except botocore.exceptions.ClientError:
+            LOGGER.exception('client')
+        return AwsCredentials(response['Credentials']['AccessKeyId'],
+                              response['Credentials']['SecretAccessKey'],
+                              response['Credentials']['SessionToken'])
     return AwsCredentials(args.access_key,
                           args.secret_key,
                           None)
@@ -305,3 +313,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
