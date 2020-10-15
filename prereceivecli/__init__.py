@@ -24,9 +24,9 @@
 #
 
 """
-prereceivecli package
+prereceivecli package.
 
-Import all parts from prereceivecli here
+Import all parts from prereceivecli here.
 
 .. _Google Python Style Guide:
    http://google.github.io/styleguide/pyguide.html

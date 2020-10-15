@@ -24,7 +24,7 @@
 #
 
 """
-Custom exception code for prereceivecli
+Custom exception code for prereceivecli.
 
 .. _Google Python Style Guide:
    http://google.github.io/styleguide/pyguide.html

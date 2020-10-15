@@ -24,7 +24,7 @@
 #
 
 """
-Main code for utils
+Main code for utils.
 
 .. _Google Python Style Guide:
    http://google.github.io/styleguide/pyguide.html
@@ -66,9 +66,9 @@ LOGGER = logging.getLogger(LOGGER_BASENAME)
 LOGGER.addHandler(logging.NullHandler())
 
 
-@dataclass()  # pylint: disable=too-few-public-methods
+@dataclass
 class Project:
-    """Models a project exposing attributes for slug, group and git_path"""
+    """Models a project exposing attributes for slug, group and git_path."""
 
     slug: str
     group: str
@@ -79,9 +79,9 @@ class Project:
     base: str
 
 
-@dataclass()  # pylint: disable=too-few-public-methods
+@dataclass
 class SecurityEntry:
-    """Models a security entry exposing attributes for slug, type and git_path"""
+    """Models a security entry exposing attributes for slug, type and git_path."""
 
     hashes: list
     name: str
@@ -89,7 +89,7 @@ class SecurityEntry:
 
 
 def parse_hook_input():
-    """Parses the git hook input disregarding the tags reference"""
+    """Parses the git hook input disregarding the tags reference."""
     hook_input = sys.stdin.read()
     base = None
     commit = None
@@ -107,8 +107,9 @@ def parse_hook_input():
         raise SystemExit(0)
     return base, commit
 
+
 def execute_command_with_returned_output(command):
-    """Execute the command with returned output"""
+    """Execute the command with returned output."""
     stdout = ''
     stderr = ''
     command = shlex.split(command)
@@ -118,11 +119,12 @@ def execute_command_with_returned_output(command):
         stdout = command_execution.decode('utf-8')
     except CalledProcessError as command_execution:
         stderr = command_execution.stderr.decode('utf-8')
-    success = True if command_execution else False
+    success = bool(command_execution)
     return success, stdout.strip(), stderr.strip()
 
+
 def send_slack_message(webhook, message):
-    """Send a message to a webhook in slack
+    """Send a message to a webhook in slack.
 
     Args:
         webhook (str): The webhook to submit the message to
@@ -151,7 +153,7 @@ def send_slack_message(webhook, message):
 
 
 def get_project(base, commit):
-    """Constructs a project object from a gitlab project path
+    """Constructs a project object from a gitlab project path.
 
     Returns:
         (project): An object exposing the required attributes of the environment and the project
@@ -173,12 +175,13 @@ def get_project(base, commit):
     return Project(project_slug, project_group, git_path, git_command, username, commit, base)
 
 
-def get_table_for_project_group(project_group):
-    """Retrieves a dynamodb table following a specific naming convention
+def get_table_for_project_group(project_group, credentials):
+    """Retrieves a dynamodb table following a specific naming convention.
 
     Args:
         project_group (str): The type of the project to look up the table for.
-        Convention states that the table should be named {type, eg:infrastructure}_git_hook
+            Convention states that the table should be named {type, eg:infrastructure}_git_hook.
+        credentials (AwsCredentials): An object holding the credentials passed from the authentication process.
 
     Returns:
         (dynamodb Table): if found else None
@@ -187,9 +190,9 @@ def get_table_for_project_group(project_group):
     invalid_settings = 'Invalid aws credentials settings. Please set region and credentials properly'
     try:
         dynamodb = boto3.resource('dynamodb',
-                                  aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-                                  aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
-                                  aws_session_token=os.environ.get('AWS_SESSION_TOKEN'))
+                                  aws_access_key_id=credentials.access_key_id,
+                                  aws_secret_access_key=credentials.secret_access_key,
+                                  aws_session_token=credentials.session_token)
     except NoRegionError:
         LOGGER.exception('')
         raise ValueError(invalid_settings)
@@ -208,7 +211,7 @@ def get_table_for_project_group(project_group):
 
 @contextmanager
 def no_quarantine():
-    """Context manager that clears the GIT_QUARANTINE_PATH environment variable and restores it"""
+    """Context manager that clears the GIT_QUARANTINE_PATH environment variable and restores it."""
     git_quarantine_path = os.environ.get('GIT_QUARANTINE_PATH')
     try:
         if git_quarantine_path is not None:
@@ -220,7 +223,7 @@ def no_quarantine():
 
 
 class GitCheckout:
-    """Implements a git rebuilding context manager for a pre-receive hook"""
+    """Implements a git rebuilding context manager for a pre-receive hook."""
 
     def __init__(self, project, hasher, entries):
         logger_name = u'{base}.{suffix}'.format(base=LOGGER_BASENAME,
@@ -239,7 +242,7 @@ class GitCheckout:
         if process.returncode:
             self._logger.error('Error executing command "%s"\n\tstderr: "%s"\n\tstdout: "%s"',
                                command, err, out)
-        return True if not process.returncode else False
+        return True if not process.returncode else False  # pylint: disable=simplifiable-if-expression
 
     def __enter__(self):  # pylint: disable=inconsistent-return-statements
         with tempdir() as temporary_directory:
