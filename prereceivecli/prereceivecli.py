@@ -24,7 +24,7 @@
 #
 
 """
-Main code for prereceivecli
+Main code for prereceivecli.
 
 .. _Google Python Style Guide:
    http://google.github.io/styleguide/pyguide.html
@@ -37,11 +37,10 @@ import logging
 import logging.config
 import os
 from dataclasses import dataclass
+
 import boto3
 import botocore
-
 from commonutilslib import Hasher
-from botocore.config import Config
 
 from .configuration import HASHES_SCHEMA
 from .lib import (get_project,
@@ -55,7 +54,7 @@ from .lib import (get_project,
 
 @dataclass
 class AwsCredentials:
-    """Stores AWS Credentials"""
+    """Stores AWS Credentials."""
 
     access_key_id: str
     secret_access_key: str
@@ -72,7 +71,6 @@ __maintainer__ = '''Costas Tyfoxylos'''
 __email__ = '''<ctyfoxylos@schubergphilis.com>'''
 __status__ = '''Development'''  # "Prototype", "Development", "Production".
 
-
 # This is the main prefix used for logging
 LOGGER_BASENAME = '''prereceivecli'''
 LOGGER = logging.getLogger(LOGGER_BASENAME)
@@ -82,8 +80,7 @@ LOGGERS_TO_DISABLE = ['botocore.credentials']
 
 
 def get_arguments():
-    """
-    Gets us the cli arguments.
+    """Gets us the cli arguments.
 
     Returns the args as parsed from the argsparser.
     """
@@ -95,32 +92,32 @@ def get_arguments():
     excluding_key_token = parser.add_mutually_exclusive_group()
     excluding_secret_arn = parser.add_mutually_exclusive_group()
     key = excluding_key_arn.add_argument('--key', '-k',
-                                    dest='access_key',
-                                    action='store',
-                                    help='The aws access key',
-                                    type=str,
-                                    required=False)
+                                         dest='access_key',
+                                         action='store',
+                                         help='The aws access key',
+                                         type=str,
+                                         required=False)
     arn = excluding_key_arn.add_argument('--arn', '-arn',
-                                    dest='aws_role_arn',
-                                    action='store',
-                                    help='The aws role arn, defaults to environment variable',
-                                    type=str,
-                                    required=False)
+                                         dest='aws_role_arn',
+                                         action='store',
+                                         help='The aws role arn, defaults to environment variable',
+                                         type=str,
+                                         required=False)
     token = excluding_secret_token.add_argument('--token', '-token',
-                                      dest='aws_web_identity_token_file',
-                                      action='store',
-                                      help='The aws web identity token file, defaults to environment variable',
-                                      type=argparse.FileType('r'),
-                                      required=False)
+                                                dest='aws_web_identity_token_file',
+                                                action='store',
+                                                help='The aws web identity token file, defaults to environment variable',
+                                                type=argparse.FileType('r'),
+                                                required=False)
     secret = excluding_secret_token.add_argument('--secret', '-s',
-                                       dest='secret_key',
-                                       action='store',
-                                       help='The aws secret key',
-                                       type=str,
-                                       required=False)
+                                                 dest='secret_key',
+                                                 action='store',
+                                                 help='The aws secret key',
+                                                 type=str,
+                                                 required=False)
     # See: https://bugs.python.org/issue10984#msg219660
-    excluding_key_token._group_actions.extend([key, token])
-    excluding_secret_arn._group_actions.extend([arn, secret])
+    excluding_key_token._group_actions.extend([key, token])  # pylint: disable=protected-access
+    excluding_secret_arn._group_actions.extend([arn, secret])  # pylint: disable=protected-access
     parser.add_argument('--log-config',
                         '-l',
                         action='store',
@@ -171,13 +168,15 @@ def get_arguments():
 
 
 def setup_logging(level, config_file=None):
-    """
-    Sets up the logging.
-
-    Needs the args to get the log level supplied
+    """Sets up the logging.
 
     Args:
-        args: The arguments returned gathered from argparse
+        level: The level to log for.
+        config_file: The config file with the logging configuration. If provided it superseeds the level arg.
+
+    Returns:
+        args: The parsed arguments.
+
     """
     # This will configure the logging, if the user has set a config file.
     # If there's no config file, logging will default to stdout.
@@ -203,25 +202,22 @@ def setup_logging(level, config_file=None):
 
 
 def get_credentials(args):
-    """
-    Gets AWS credentials.
+    """Gets AWS credentials.
 
     Needs the args to either assume role or get credentials
 
     Credentials:
         Credentials: The AWS credentials to set for our environment
+
     """
     if not all([args.access_key, args.secret_key]):
-        #config = Config(retries={'max_attempts': 10,
-        #                         'mode': 'standard'})
-        #client = boto3.client('sts', config=config)
         client = boto3.client('sts',
                               aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
                               aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
                               aws_session_token=os.environ.get('AWS_SESSION_TOKEN'))
         with open(args.aws_web_identity_token_file.name, 'r') as opened_file:
             token = opened_file.read()
-        try:   
+        try:
             response = client.assume_role_with_web_identity(RoleArn=args.aws_role_arn,
                                                             RoleSessionName='prereceive',
                                                             WebIdentityToken=token)
@@ -236,14 +232,16 @@ def get_credentials(args):
 
 
 def validate_commit(project, dynamodb_table, web_hook, aggressive_checking):
-    """Validates that no unauthorized change has been performed on protected files on a specified commit
+    """Validates that no unauthorized change has been performed on protected files on a specified commit.
 
     Args:
-        project (Project): An object exposing attributes of the required variables
-        dynamodb_table (Table): The dynamodb table with the entries for the projects
-        web_hook (str): The url of the slack webhook
+        project (Project): An object exposing attributes of the required variables.
+        dynamodb_table (Table): The dynamodb table with the entries for the projects.
+        web_hook (str): The url of the slack webhook.
+        aggressive_checking (bool): If set any unmatched repositories will be rejected.
 
     Returns:
+        success (bool): True if the commit is valid False otherwise.
 
     """
     entries = dynamodb_table.get_item(Key={'slug': project.slug}).get('Item', {})
@@ -265,18 +263,18 @@ def validate_commit(project, dynamodb_table, web_hook, aggressive_checking):
         return True
     hasher = Hasher()
     with no_quarantine(), GitCheckout(project, hasher, entries) as errors:
-        success = False if errors else True
+        success = False if errors else True  # pylint: disable=simplifiable-if-expression
     for error_message in errors:
         send_slack_message(web_hook, error_message)
     return success
 
 
 def main():
-    """
-    Main method.
+    """Main method.
 
     This method holds what you want to execute when
     the script is run on command line.
+
     """
     try:
         args = get_arguments()
@@ -292,15 +290,8 @@ def main():
             LOGGER.info('It seems only tags were pushed for project "%s" by username "%s", letting through',
                         project.slug, project.username)
             raise SystemExit(0)
-        credentials = get_credentials(args)
-        os.environ['AWS_ACCESS_KEY_ID'] = credentials.access_key_id
-        os.environ['AWS_SECRET_ACCESS_KEY'] = credentials.secret_access_key
         os.environ['AWS_DEFAULT_REGION'] = args.region
-        if credentials.session_token is None:
-            print("No SessionToken found")
-        else:
-            os.environ['AWS_SESSION_TOKEN'] = credentials.session_token
-        dynamodb_table = get_table_for_project_group(project.group)
+        dynamodb_table = get_table_for_project_group(project.group, get_credentials(args))
         if not dynamodb_table:
             LOGGER.info('Project "%s" does not appear to have security settings set, letting through...', project.slug)
             raise SystemExit(0)

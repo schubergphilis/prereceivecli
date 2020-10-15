@@ -24,7 +24,7 @@
 #
 
 """
-Main code for configuration
+Main code for configuration.
 
 .. _Google Python Style Guide:
    http://google.github.io/styleguide/pyguide.html
@@ -50,7 +50,7 @@ LOGGER_BASENAME = '''configuration'''
 LOGGER = logging.getLogger(LOGGER_BASENAME)
 LOGGER.addHandler(logging.NullHandler())
 
-#SLUG_REGEX = re.compile(r'^[0-9]{3,}-[a-z0-9-]+')
+# SLUG_REGEX = re.compile(r'^[0-9]{3,}-[a-z0-9-]+')
 SLUG_REGEX = re.compile(r'.*')
 
 HASHES_SCHEMA = Schema({u'protected_items': [{u'hashes': [str],
