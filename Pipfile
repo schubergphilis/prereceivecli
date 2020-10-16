@@ -34,7 +34,7 @@ emoji = "~=0.5.1"
 
 [packages]
 
-commonutilslib = "~=0.1.0"
+commonutilslib = "~=0.1.2"
 requests = "~=2.21.0"
 boto3 = "~=1.9.84"
 dataclasses = {version = "~=0.6", markers="python_version == '3.6'"}
