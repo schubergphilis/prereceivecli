@@ -31,3 +31,9 @@ History
 ------------------
 
 * Fixed project_group name logic
+
+
+0.2.0 (16-10-2020)
+------------------
+
+* Implemented web identity authentication.
