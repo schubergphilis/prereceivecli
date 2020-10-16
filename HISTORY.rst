@@ -37,3 +37,9 @@ History
 ------------------
 
 * Implemented web identity authentication.
+
+
+0.2.1 (16-10-2020)
+------------------
+
+* Bumped dependencies
