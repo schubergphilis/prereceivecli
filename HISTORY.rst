@@ -43,3 +43,9 @@ History
 ------------------
 
 * Bumped dependencies
+
+
+1.0.0 (30-12-2020)
+------------------
+
+* Replace hyphens with underscores in all project names for dynamo lookup.
