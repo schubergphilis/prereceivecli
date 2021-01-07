@@ -49,3 +49,9 @@ History
 ------------------
 
 * Replace hyphens with underscores in all project names for dynamo lookup.
+
+
+1.0.1 (07-01-2021)
+------------------
+
+* Made error message friendlier.
