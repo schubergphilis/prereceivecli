@@ -59,10 +59,11 @@ HASHES_SCHEMA = Schema({u'protected_items': [{u'hashes': [str],
                         u'slug': SLUG_REGEX.match})
 
 ERROR_MESSAGE = (':fire:'
-                 'The *{entry.name}* {entry.type} seems tampered with by '
-                 'user: *{project.username}*, not accepting the push.\n'
+                 'Hello, *{project.username}* - you are not allowed to change {entry.type} *{entry.name}*.'
+                 'As a result this server is not accepting your push.\n'
                  'Calculated hash for {entry.type} *{entry.name}* was: *{calculated_hash}*'
                  '{diff}'
-                 'If you want this commit to be accepted please add the hash to the appropriate entry in '
+                 'If you want this commit to be accepted please contact the responsible team, '
+                 'or add the hash to the appropriate entry in '
                  '<https://{region}.console.aws.amazon.com/dynamodb/home?region={region}#tables:'
                  'selected={project.group}_git_hook;tab=items|DynamoDB>')
