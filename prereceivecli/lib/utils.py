@@ -249,7 +249,9 @@ class GitCheckout:
             self.temporary_directory = temporary_directory
             self.git_directory = pathlib.Path(temporary_directory).joinpath(self.project.slug, 'git')
             self.working_directory = pathlib.Path(temporary_directory).joinpath(self.project.slug, 'files')
-            git_with_tree = [self.project.git_command, f'--work-tree={self.working_directory}']
+            git_with_tree = [self.project.git_command,
+                             f'--git-dir={self.git_directory}',
+                             f'--work-tree={self.working_directory}']
             self._logger.info('Creating a copy of "%s" to "%s"', self.project.git_path, self.git_directory)
             shutil.copytree(self.project.git_path, self.git_directory)
             self._logger.info('Cloning "%s" to "%s"', self.git_directory, self.working_directory)
