@@ -55,3 +55,9 @@ History
 ------------------
 
 * Made error message friendlier.
+
+
+1.0.2 (09-03-2021)
+------------------
+
+* Explicitly targeting the copy git repo for the latest gitlab.
