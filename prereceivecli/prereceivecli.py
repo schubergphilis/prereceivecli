@@ -46,8 +46,7 @@ from .configuration import HASHES_SCHEMA
 from .lib import (get_project,
                   get_table_for_project_group,
                   send_slack_message,
-                  GitCheckout,
-                  no_quarantine,
+                  HashChecker,
                   SecurityEntry,
                   parse_hook_input)
 
@@ -262,10 +261,10 @@ def validate_commit(project, dynamodb_table, web_hook, aggressive_checking):
         LOGGER.info('No hashes found for project "%s" for any type, project not secured', project.slug)
         return True
     hasher = Hasher()
-    with no_quarantine(), GitCheckout(project, hasher, entries) as errors:
+    with HashChecker(project, hasher, entries) as errors:
         success = False if errors else True  # pylint: disable=simplifiable-if-expression
-    for error_message in errors:
-        send_slack_message(web_hook, error_message)
+        for error_message in errors:
+            send_slack_message(web_hook, error_message)
     return success
 
 
