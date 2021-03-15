@@ -45,8 +45,7 @@ from subprocess import Popen, PIPE, check_output, CalledProcessError
 import boto3
 import requests
 from botocore.exceptions import NoRegionError, NoCredentialsError, ClientError
-from commonutilslib import Hasher
-from commonutilslib import Pushd
+from commonutilslib import Hasher, Pushd
 from prereceivecli.configuration import ERROR_MESSAGE
 from prereceivecli.prereceivecliexceptions import GitExecutionPathNotFound
 
@@ -214,7 +213,6 @@ class HashChecker:
 
     def __init__(self):
         self._logger = logging.getLogger(f'{LOGGER_BASENAME}.{self.__class__.__name__}')
-        self.hasher = Hasher()
 
     def _execute_command(self, command):
         process = Popen(command, stdout=PIPE, stderr=PIPE)
@@ -236,7 +234,6 @@ class HashChecker:
             self._logger.error(error_message)
             errors.append(error_message)
             return errors
-
         self._logger.info('Extracting archive "%s" to "%s"', archive_path, extract_path)
         with zipfile.ZipFile(archive_path, 'r') as zip_ref:
             zip_ref.extractall(extract_path)
@@ -244,6 +241,7 @@ class HashChecker:
 
     def _validate_hashes(self, project, entries, extract_path):
         errors = []
+        hasher = Hasher()
         self._logger.info('Changing directory to "%s"', extract_path)
         with Pushd(extract_path):
             for entry in entries:
@@ -254,7 +252,7 @@ class HashChecker:
                 path = str(pathlib.Path(extract_path, entry.name).resolve())
                 self._logger.info('"%s": Calculating hash for "%s" "%s" in path: "%s"',
                                   project.slug, entry.type, entry.name, path)
-                calculated_hash = getattr(self.hasher, f'hash_{entry.type}')(path)
+                calculated_hash = getattr(hasher, f'hash_{entry.type}')(path)
                 if calculated_hash not in entry.hashes:
                     process = Popen([project.git_command, 'diff', project.base,
                                      project.commit], stdout=PIPE, stderr=PIPE)
