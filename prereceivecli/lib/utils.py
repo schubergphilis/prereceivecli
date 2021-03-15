@@ -39,14 +39,14 @@ import sys
 import shlex
 import tempfile
 import zipfile
-from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from subprocess import Popen, PIPE, check_output, CalledProcessError
 
 import boto3
 import requests
 from botocore.exceptions import NoRegionError, NoCredentialsError, ClientError
-from commonutilslib import tempdir, Pushd
+from commonutilslib import Hasher
+from commonutilslib import Pushd
 from prereceivecli.configuration import ERROR_MESSAGE
 from prereceivecli.prereceivecliexceptions import GitExecutionPathNotFound
 
@@ -209,16 +209,12 @@ def get_table_for_project_group(project_group, credentials):
     return table
 
 
-class HashChecker(AbstractContextManager):
+class HashChecker:
     """Implements a git rebuilding context manager for a pre-receive hook."""
 
-    def __init__(self, project, hasher, entries):
-        logger_name = u'{base}.{suffix}'.format(base=LOGGER_BASENAME,
-                                                suffix=self.__class__.__name__)
-        self._logger = logging.getLogger(logger_name)
-        self.project = project
-        self.hasher = hasher
-        self.entries = entries
+    def __init__(self):
+        self._logger = logging.getLogger(f'{LOGGER_BASENAME}.{self.__class__.__name__}')
+        self.hasher = Hasher()
 
     def _execute_command(self, command):
         process = Popen(command, stdout=PIPE, stderr=PIPE)
@@ -228,60 +224,52 @@ class HashChecker(AbstractContextManager):
                                command, err, out)
         return True if not process.returncode else False  # pylint: disable=simplifiable-if-expression
 
-    def __enter__(self):  # pylint: disable=inconsistent-return-statements
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            self._logger.info('Created a temporary directory "%s"', temporary_directory)
-            # `TemporaryDirectory()` does not change cwd, so we are still in the project's GIT_DIR
-            archive_path = str(pathlib.Path(temporary_directory, 'archive.zip').resolve())
-            extract_path = str(pathlib.Path(temporary_directory, 'archive').resolve())
-
-            # `GIT_DIR` is unchanged, so we are operating on the main (server's) copy of the repo
-            # DO NOT DO ANYTHING THAT WILL UPDATE THE REFS (such as a git checkout) as that might
-            # corrupt the repo
-
-            self._logger.info('Creating an archive from "%s" @rev "%s" to "%s"',
-                              self.project.git_path, self.project.commit, archive_path)
-            if not self._execute_command(
-                [self.project.git_command, 'archive', '--format=zip', '-o', f'{archive_path}',
-                 f'{self.project.commit}']
-            ):
-                error_message = f'Failed creating an archive from {self.project.commit}'
-                self._logger.error(error_message)
-                return [error_message]
-
-            self._logger.info('Extracting archive "%s" to "%s"', archive_path, extract_path)
-            with zipfile.ZipFile(archive_path, 'r') as zip_ref:
-                zip_ref.extractall(extract_path)
-
-            errors = []
-            self._logger.info('Changing directory to "%s"', extract_path)
-            with Pushd(extract_path):
-                for entry in self.entries:
-                    if not entry.hashes:
-                        self._logger.info('"%s": No hashes are set, skipping check for %s %s',
-                                          self.project.slug, entry.type, entry.name)
-                        continue
-                    path = str(pathlib.Path(extract_path, entry.name).resolve())
-                    self._logger.info('"%s": Calculating hash for "%s" "%s" in path: "%s"',
-                                      self.project.slug, entry.type, entry.name, path)
-                    calculated_hash = getattr(self.hasher, f'hash_{entry.type}')(path)
-                    if calculated_hash not in entry.hashes:
-                        process = Popen([self.project.git_command, 'diff', self.project.base,
-                                         self.project.commit], stdout=PIPE, stderr=PIPE)
-                        out, _ = process.communicate()
-                        error_message = (ERROR_MESSAGE.format(entry=entry,
-                                                              project=self.project,
-                                                              calculated_hash=calculated_hash,
-                                                              diff=self._render_diff(
-                                                                  out.decode("utf-8"),
-                                                                  entry.name),
-                                                              region=os.environ[
-                                                                  'AWS_DEFAULT_REGION']))
-                        errors.append(error_message)
-                        self._logger.error(error_message)
-
-            self._logger.info('Cleaning up temporary directory "%s"', temporary_directory)
+    def _export_revision(self, project, archive_path, extract_path):
+        errors = []
+        self._logger.info('Creating an archive from "%s" @rev "%s" to "%s"',
+                          project.git_path, project.commit, archive_path)
+        if not self._execute_command([project.git_command,
+                                      'archive',
+                                      '--format=zip', '-o', f'{archive_path}', '-0',
+                                      f'{project.commit}']):
+            error_message = f'Failed creating an archive from {project.commit}'
+            self._logger.error(error_message)
+            errors.append(error_message)
             return errors
+
+        self._logger.info('Extracting archive "%s" to "%s"', archive_path, extract_path)
+        with zipfile.ZipFile(archive_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_path)
+        return errors
+
+    def _validate_hashes(self, project, entries, extract_path):
+        errors = []
+        self._logger.info('Changing directory to "%s"', extract_path)
+        with Pushd(extract_path):
+            for entry in entries:
+                if not entry.hashes:
+                    self._logger.info('"%s": No hashes are set, skipping check for %s %s',
+                                      project.slug, entry.type, entry.name)
+                    continue
+                path = str(pathlib.Path(extract_path, entry.name).resolve())
+                self._logger.info('"%s": Calculating hash for "%s" "%s" in path: "%s"',
+                                  project.slug, entry.type, entry.name, path)
+                calculated_hash = getattr(self.hasher, f'hash_{entry.type}')(path)
+                if calculated_hash not in entry.hashes:
+                    process = Popen([project.git_command, 'diff', project.base,
+                                     project.commit], stdout=PIPE, stderr=PIPE)
+                    out, _ = process.communicate()
+                    error_message = (ERROR_MESSAGE.format(entry=entry,
+                                                          project=project,
+                                                          calculated_hash=calculated_hash,
+                                                          diff=self._render_diff(
+                                                              out.decode("utf-8"),
+                                                              entry.name),
+                                                          region=os.environ[
+                                                              'AWS_DEFAULT_REGION']))
+                    errors.append(error_message)
+                    self._logger.error(error_message)
+        return errors
 
     def _render_diff(self, text, file_name):
         text = self._filter_diff_entry(text, file_name)
@@ -302,7 +290,18 @@ class HashChecker(AbstractContextManager):
             text = ''
         return text
 
-    def __exit__(self, exception_type, exception_value, traceback):
-        self._logger.debug('Exiting HashChecker context manager')
-        # Do not suppress any raised exceptions
-        return False
+    def verify(self, project, entries):
+        # `GIT_DIR` is unchanged, so we are operating on the main (server's) copy of the repo
+        # DO NOT DO ANYTHING THAT WILL UPDATE THE REFS (such as a git checkout) as that might
+        # corrupt the repo
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            self._logger.info('Created a temporary directory "%s"', temporary_directory)
+            # `TemporaryDirectory()` does not change cwd, so we are still in the project's GIT_DIR
+            archive_path = str(pathlib.Path(temporary_directory, 'archive.zip').resolve())
+            extract_path = str(pathlib.Path(temporary_directory, 'archive').resolve())
+            errors = self._export_revision(project, archive_path, extract_path)
+            if errors:
+                return errors
+            errors = self._validate_hashes(project, entries, extract_path)
+        self._logger.info('Cleaning up temporary directory "%s"', temporary_directory)
+        return errors
