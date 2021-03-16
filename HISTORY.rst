@@ -61,3 +61,9 @@ History
 ------------------
 
 * Explicitly targeting the copy git repo for the latest gitlab.
+
+
+1.1.0 (16-03-2021)
+------------------
+
+* Implemented archive instead of checkout as checkout corrupted repositories in Gitlab after 13.8 and the exposure of GIT_DIR environment variable.
