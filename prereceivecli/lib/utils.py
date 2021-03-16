@@ -34,19 +34,18 @@ Main code for utils.
 import logging
 import json
 import os
-import shutil
 import pathlib
 import sys
 import shlex
-
-from subprocess import Popen, PIPE, check_output, CalledProcessError
-from contextlib import contextmanager
+import tempfile
+import zipfile
 from dataclasses import dataclass
+from subprocess import Popen, PIPE, check_output, CalledProcessError
 
 import boto3
 import requests
 from botocore.exceptions import NoRegionError, NoCredentialsError, ClientError
-from commonutilslib import tempdir, Pushd
+from commonutilslib import Hasher, Pushd
 from prereceivecli.configuration import ERROR_MESSAGE
 from prereceivecli.prereceivecliexceptions import GitExecutionPathNotFound
 
@@ -54,7 +53,7 @@ __author__ = '''Costas Tyfoxylos <ctyfoxylos@schubergphilis.com>'''
 __docformat__ = '''google'''
 __date__ = '''24-01-2019'''
 __copyright__ = '''Copyright 2019, Costas Tyfoxylos'''
-__credits__ = ["Costas Tyfoxylos", "Sayantan Khanra"]
+__credits__ = ["Costas Tyfoxylos", "Sayantan Khanra", "Ninad Page"]
 __license__ = '''MIT'''
 __maintainer__ = '''Costas Tyfoxylos'''
 __email__ = '''<ctyfoxylos@schubergphilis.com>'''
@@ -209,32 +208,11 @@ def get_table_for_project_group(project_group, credentials):
     return table
 
 
-@contextmanager
-def no_quarantine():
-    """Context manager that clears the GIT_QUARANTINE_PATH environment variable and restores it."""
-    git_quarantine_path = os.environ.get('GIT_QUARANTINE_PATH')
-    try:
-        if git_quarantine_path is not None:
-            del os.environ['GIT_QUARANTINE_PATH']
-        yield
-    finally:
-        if git_quarantine_path is not None:
-            os.environ['GIT_QUARANTINE_PATH'] = git_quarantine_path
-
-
-class GitCheckout:
+class HashChecker:
     """Implements a git rebuilding context manager for a pre-receive hook."""
 
-    def __init__(self, project, hasher, entries):
-        logger_name = u'{base}.{suffix}'.format(base=LOGGER_BASENAME,
-                                                suffix=self.__class__.__name__)
-        self._logger = logging.getLogger(logger_name)
-        self.project = project
-        self.hasher = hasher
-        self.entries = entries
-        self.temporary_directory = None
-        self.git_directory = None
-        self.working_directory = None
+    def __init__(self):
+        self._logger = logging.getLogger(f'{LOGGER_BASENAME}.{self.__class__.__name__}')
 
     def _execute_command(self, command):
         process = Popen(command, stdout=PIPE, stderr=PIPE)
@@ -244,49 +222,52 @@ class GitCheckout:
                                command, err, out)
         return True if not process.returncode else False  # pylint: disable=simplifiable-if-expression
 
-    def __enter__(self):  # pylint: disable=inconsistent-return-statements
-        with tempdir() as temporary_directory:
-            self.temporary_directory = temporary_directory
-            self.git_directory = pathlib.Path(temporary_directory).joinpath(self.project.slug, 'git')
-            self.working_directory = pathlib.Path(temporary_directory).joinpath(self.project.slug, 'files')
-            git_with_tree = [self.project.git_command,
-                             f'--git-dir={self.git_directory}',
-                             f'--work-tree={self.working_directory}']
-            self._logger.info('Creating a copy of "%s" to "%s"', self.project.git_path, self.git_directory)
-            shutil.copytree(self.project.git_path, self.git_directory)
-            self._logger.info('Cloning "%s" to "%s"', self.git_directory, self.working_directory)
-            if self._execute_command([self.project.git_command, 'clone', self.git_directory, self.working_directory]):
-                self._logger.info('Changing directory to "%s"', self.git_directory)
-                with Pushd(self.git_directory):
-                    self._logger.info('Checking out commit "%s"', self.project.commit)
-                    self._execute_command(git_with_tree + ['checkout', '-f', self.project.commit])
-                    # self._logger.info('Resetting hard')
-                    # self._execute_command(git_with_tree + ['reset', '--hard'])
-                    # self._logger.info('Cleaning repo')
-                    # self._execute_command(git_with_tree + ['clean', '-fdx'])
-                    errors = []
-                    for entry in self.entries:
-                        if not entry.hashes:
-                            self._logger.info('"%s": No hashes are set, skipping check for %s %s',
-                                              self.project.slug, entry.type, entry.name)
-                            continue
-                        path = str(pathlib.Path(self.working_directory).absolute().joinpath(entry.name))
-                        self._logger.info('"%s": Calculating hash for "%s" "%s" in path: "%s"',
-                                          self.project.slug, entry.type, entry.name, path)
-                        calculated_hash = getattr(self.hasher, f'hash_{entry.type}')(path)
-                        if calculated_hash not in entry.hashes:
-                            command = git_with_tree + ['diff', self.project.base, self.project.commit]
-                            process = Popen(command, stdout=PIPE, stderr=PIPE)
-                            out, _ = process.communicate()
-                            error_message = (ERROR_MESSAGE.format(entry=entry,
-                                                                  project=self.project,
-                                                                  calculated_hash=calculated_hash,
-                                                                  diff=self._render_diff(out.decode("utf-8"),
-                                                                                         entry.name),
-                                                                  region=os.environ['AWS_DEFAULT_REGION']))
-                            errors.append(error_message)
-                            self._logger.error(error_message)
-                    return errors
+    def _export_revision(self, project, archive_path, extract_path):
+        errors = []
+        self._logger.info('Creating an archive from "%s" @rev "%s" to "%s"',
+                          project.git_path, project.commit, archive_path)
+        if not self._execute_command([project.git_command,
+                                      'archive',
+                                      '--format=zip', '-o', f'{archive_path}', '-0',
+                                      f'{project.commit}']):
+            error_message = f'Failed creating an archive from {project.commit}'
+            self._logger.error(error_message)
+            errors.append(error_message)
+            return errors
+        self._logger.info('Extracting archive "%s" to "%s"', archive_path, extract_path)
+        with zipfile.ZipFile(archive_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_path)
+        return errors
+
+    def _validate_hashes(self, project, entries, extract_path):
+        errors = []
+        hasher = Hasher()
+        self._logger.info('Changing directory to "%s"', extract_path)
+        with Pushd(extract_path):
+            for entry in entries:
+                if not entry.hashes:
+                    self._logger.info('"%s": No hashes are set, skipping check for %s %s',
+                                      project.slug, entry.type, entry.name)
+                    continue
+                path = str(pathlib.Path(extract_path, entry.name).resolve())
+                self._logger.info('"%s": Calculating hash for "%s" "%s" in path: "%s"',
+                                  project.slug, entry.type, entry.name, path)
+                calculated_hash = getattr(hasher, f'hash_{entry.type}')(path)
+                if calculated_hash not in entry.hashes:
+                    process = Popen([project.git_command, 'diff', project.base,
+                                     project.commit], stdout=PIPE, stderr=PIPE)
+                    out, _ = process.communicate()
+                    error_message = (ERROR_MESSAGE.format(entry=entry,
+                                                          project=project,
+                                                          calculated_hash=calculated_hash,
+                                                          diff=self._render_diff(
+                                                              out.decode("utf-8"),
+                                                              entry.name),
+                                                          region=os.environ[
+                                                              'AWS_DEFAULT_REGION']))
+                    errors.append(error_message)
+                    self._logger.error(error_message)
+        return errors
 
     def _render_diff(self, text, file_name):
         text = self._filter_diff_entry(text, file_name)
@@ -307,8 +288,18 @@ class GitCheckout:
             text = ''
         return text
 
-    def __exit__(self, exception_type, exception_value, traceback):
-        self._logger.info('Cleaning up temporary directory "%s"', self.temporary_directory)
-        self.git_directory = None
-        self.working_directory = None
-        self.temporary_directory = None
+    def verify(self, project, entries):
+        # `GIT_DIR` is unchanged, so we are operating on the main (server's) copy of the repo
+        # DO NOT DO ANYTHING THAT WILL UPDATE THE REFS (such as a git checkout) as that might
+        # corrupt the repo
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            self._logger.info('Created a temporary directory "%s"', temporary_directory)
+            # `TemporaryDirectory()` does not change cwd, so we are still in the project's GIT_DIR
+            archive_path = str(pathlib.Path(temporary_directory, 'archive.zip').resolve())
+            extract_path = str(pathlib.Path(temporary_directory, 'archive').resolve())
+            errors = self._export_revision(project, archive_path, extract_path)
+            if errors:
+                return errors
+            errors = self._validate_hashes(project, entries, extract_path)
+        self._logger.info('Cleaning up temporary directory "%s"', temporary_directory)
+        return errors

@@ -35,8 +35,7 @@ Import all parts from lib here.
 from .utils import (get_table_for_project_group,
                     get_project,
                     send_slack_message,
-                    GitCheckout,
-                    no_quarantine,
+                    HashChecker,
                     SecurityEntry,
                     parse_hook_input)
 
@@ -51,9 +50,8 @@ __status__ = '''Development'''  # "Prototype", "Development", "Production".
 
 
 assert get_project
-assert no_quarantine
 assert get_table_for_project_group
 assert send_slack_message
-assert GitCheckout
+assert HashChecker
 assert SecurityEntry
 assert parse_hook_input

@@ -60,7 +60,7 @@ HASHES_SCHEMA = Schema({u'protected_items': [{u'hashes': [str],
 
 ERROR_MESSAGE = (':fire:'
                  'Hello, *{project.username}* - you are not allowed to change {entry.type} *{entry.name}*.'
-                 'As a result this server is not accepting your push.\n'
+                 ' As a result this server is not accepting your push.\n'
                  'Calculated hash for {entry.type} *{entry.name}* was: *{calculated_hash}*'
                  '{diff}'
                  'If you want this commit to be accepted please contact the responsible team, '
