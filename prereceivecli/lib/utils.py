@@ -208,7 +208,7 @@ def get_table_for_project_group(project_group, credentials):
     return table
 
 
-class HashChecker:
+class HashChecker:  # pylint: disable=too-few-public-methods
     """Implements a git rebuilding context manager for a pre-receive hook."""
 
     def __init__(self):
@@ -289,6 +289,16 @@ class HashChecker:
         return text
 
     def verify(self, project, entries):
+        """Verifies the protected files or directories specified in the entries.
+
+        Args:
+            project (Project): The project object to verify.
+            entries (dict): The entries of protected files or directories.
+
+        Returns:
+            errors (list): A list of errors of the verification failures if any.
+
+        """
         # `GIT_DIR` is unchanged, so we are operating on the main (server's) copy of the repo
         # DO NOT DO ANYTHING THAT WILL UPDATE THE REFS (such as a git checkout) as that might
         # corrupt the repo
