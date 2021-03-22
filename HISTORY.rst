@@ -67,3 +67,9 @@ History
 ------------------
 
 * Implemented archive instead of checkout as checkout corrupted repositories in Gitlab after 13.8 and the exposure of GIT_DIR environment variable.
+
+
+1.1.1 (22-03-2021)
+------------------
+
+* Handling special 00000 ref case by not handling it.
