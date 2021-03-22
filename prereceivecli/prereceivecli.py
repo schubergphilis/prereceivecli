@@ -287,6 +287,12 @@ def main():
             LOGGER.info('It seems only tags were pushed for project "%s" by username "%s", letting through',
                         project.slug, project.username)
             raise SystemExit(0)
+        # In some cases (e.g. if a branch is deleted), incoming commit (newrev) is
+        # 0000000000000000000000000000000000000000 on which we cannot do any meaningful checks
+        if commit.isdecimal() and int(commit) == 0:
+            LOGGER.info('Disregarding push with newrev="%s" for project "%s" by username "%s", '
+                        'letting through', commit, project.slug, project.username)
+            raise SystemExit(0)
         os.environ['AWS_DEFAULT_REGION'] = args.region
         dynamodb_table = get_table_for_project_group(project.group, get_credentials(args))
         if not dynamodb_table:
