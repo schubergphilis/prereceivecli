@@ -73,3 +73,9 @@ History
 ------------------
 
 * Handling special 00000 ref case by not handling it.
+
+
+1.1.2 (26-04-2021)
+------------------
+
+* Bumped dependencies.
