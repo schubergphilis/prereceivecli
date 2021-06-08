@@ -45,11 +45,11 @@
         },
         "commonutilslib": {
             "hashes": [
-                "sha256:92924743fa6d8571e3877a3c465731cf2943cf7c4cae4f4c01bfdfd9a655f274",
-                "sha256:d499742a81c4e455c1d0bbd91da8836501588045c27c4ccf5c515821baf7c9f1"
+                "sha256:988ca28765adf2bd1a829c6f6b6eb1f286e25a71aa324001fc56dfa2706e2f4d",
+                "sha256:f3489087b76768acac2056bcc660c929ed205acdc072ef225ba16778d64e996d"
             ],
             "index": "pypi",
-            "version": "==0.1.3"
+            "version": "==0.1.4"
         },
         "dataclasses": {
             "hashes": [
